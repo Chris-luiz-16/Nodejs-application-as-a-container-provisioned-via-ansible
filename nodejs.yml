@@ -1,0 +1,125 @@
+---
+
+- name: "Docker image build"
+  hosts: build
+  become: true
+  vars:
+    packages:
+      - docker
+      - git
+    git_url: https://github.com/Chris-luiz-16/Simple-Nodejs-Hello-world-Docker-image-and-container-build.git
+    clone_dest: /var/nodejs
+    docker_name: chrisluiz16/nodejs
+  vars_files:
+    - passwd.vars
+  tasks:
+    - name: "Install required packages for docker build"
+      yum:
+        name: "{{ packages }}"
+        state: present
+    - name: "Adding a secondary user docker for the user ec2-user"
+      user:
+        name: ec2-user
+        groups: docker
+        append: true
+    - name: "Starng/enabibling the docker service"
+      service:
+        name: docker
+        state: started
+        enabled: true
+    - name: "git cloning the nodejs application"
+      git:
+        repo: "{{ git_url }}"
+        dest: "{{ clone_dest }}"
+      register: git_status
+    - name: "Printing the git commit id's"
+      debug:
+        var: git_status
+    - name: "Login to the dockerhub"
+      when: git_status.changed == true
+      docker_login:
+        username: "{{ docker_user }}"
+        password: "{{ docker_passwd }}"
+    - name: "Docker image build from Docker file"
+      when: git_status.changed == true
+      community.docker.docker_image:
+        name: "{{ docker_name }}"
+        source: build
+        build:
+          path: "{{ clone_dest }}"
+          pull: true
+        tag: "{{ item }}"
+        push: true
+        force_tag: true
+        force_source: true
+      with_items:
+        - latest
+        - "{{ git_status.after }}"
+      register: build_status
+
+    - name: "Deleting the local image build"
+      when: git_status.changed == true
+      community.docker.docker_image:
+        name: "{{ docker_name }}"
+        tag: "{{ item }}"
+        state: absent
+      with_items:
+        - latest
+        - "{{ git_status.after }}"
+    - name: "Remove tangling image if any"
+      when: git_status.changed == true
+      community.docker.docker_prune:
+        images: true
+        images_filters:
+          dangling: true
+        containers: true
+    - name: "Logout docker hub"
+      when: git_status.changed == true
+      docker_login:
+        username: "{{ docker_user }}"
+        password: "{{ docker_passwd }}"
+        state: absent
+
+- name: "Running a nodejs container in test server"
+  hosts: test
+  become: true
+  vars:
+    packages: docker
+    git_url: https://github.com/Chris-luiz-16/Simple-Nodejs-Hello-world-Docker-image-and-container-build.git
+    clone_dest: /var/flaskapp
+    docker_name: chrisluiz16/nodejs
+  tasks:
+    - name: "Installing required packages for the nodejs docker container"
+      yum:
+        name: "{{ packages }}"
+        state: present
+    - name: "Adding docker as a secondary user in ec2-user"
+      user:
+        name: ec2-user
+        groups: docker
+        append: true
+    - name: " Starting & enable docker service"
+      service:
+        name: docker
+        state: started
+        enabled: true
+    - name: "Pulling the docker image to the test server"
+      community.docker.docker_image:
+        name: "{{ docker_name }}"
+        source: pull
+        force_source: true
+      register: image_status
+    - name: "Creating a node js container in test server"
+      when: image_status.changed == true
+      docker_container:
+        name: nodejsctr
+        image: "{{ docker_name }}"
+        recreate: true
+        restart_policy: always
+        published_ports: 3000:3000
+    - name: "Remove tangling image if any"
+      when: image_status.changed == true
+      community.docker.docker_prune:
+        images: true
+        images_filters:
+          dangling: true
