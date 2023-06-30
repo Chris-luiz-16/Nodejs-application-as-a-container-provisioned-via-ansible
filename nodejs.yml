@@ -66,13 +66,6 @@
       with_items:
         - latest
         - "{{ git_status.after }}"
-    - name: "Remove tangling image if any"
-      when: git_status.changed == true
-      community.docker.docker_prune:
-        images: true
-        images_filters:
-          dangling: true
-        containers: true
     - name: "Logout docker hub"
       when: git_status.changed == true
       docker_login:
@@ -117,7 +110,7 @@
         recreate: true
         restart_policy: always
         published_ports: 3000:3000
-    - name: "Remove tangling image if any"
+    - name: "Remove dangling image if any"
       when: image_status.changed == true
       community.docker.docker_prune:
         images: true
