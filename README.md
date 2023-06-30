@@ -4,5 +4,6 @@ This repo is used to showcase the deployment of nodejs based application as a co
 
 
 ## Sample output
-https://github.com/Chris-luiz-16/Nodejs-application-as-a-container-provisioned-via-ansible/assets/128575317/312ef7be-279a-4212-b945-4134079517be
+***
+https://github.com/Chris-luiz-16/Nodejs-application-as-a-container-provisioned-via-ansible/assets/128575317/1cabed9d-d39b-40b0-a47b-d28acdc78917
 
